@@ -205,7 +205,7 @@ python app.py
 
 ##6. 🔗 Live Demo
 
-**[Click here to use ArgusScorer](https://argument-scorer-517116.up.railway.app)**
+**[Click here to use ArgusScorer](https://argument-qaulity-scorer.up.railway.app)**
 
 No setup required — works on any device.
 ```
