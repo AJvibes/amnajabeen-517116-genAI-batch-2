@@ -30,7 +30,7 @@ GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 if not GROQ_API_KEYS:
     raise Exception('No GROQ_API_KEY found. Please set at least one API key.')
 
-# System prompts (same as original)
+# System prompts - use regular strings (not f-strings) to avoid brace conflicts
 SYSTEM_PROMPT = """You are a brutally precise argument analyst. Your job is to dissect the SPECIFIC argument provided and identify its EXACT flaws — not give generic writing advice.
 
 Return ONLY a valid JSON object. No preamble, no code fences, no extra text whatsoever.
@@ -135,7 +135,7 @@ def call_groq(messages, system_prompt, max_tokens=2000):
         try:
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': f'Bearer {api_key}'
+                'Authorization': 'Bearer ' + api_key
             }
 
             payload = {
@@ -148,28 +148,26 @@ def call_groq(messages, system_prompt, max_tokens=2000):
             response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
 
             if response.status_code == 429:
-                # Rate limited — try next key
-                last_error = f'Key {i+1} rate limited'
+                last_error = 'Key ' + str(i+1) + ' rate limited'
                 continue
 
             if not response.ok:
                 error_data = response.json()
-                error_msg = error_data.get('error', {}).get('message', f'Groq API error {response.status_code}')
-                last_error = f'Key {i+1}: {error_msg}'
+                error_msg = error_data.get('error', {}).get('message', 'Groq API error ' + str(response.status_code))
+                last_error = 'Key ' + str(i+1) + ': ' + error_msg
                 continue
 
             data = response.json()
             return data['choices'][0]['message']['content'].strip()
 
         except requests.exceptions.Timeout:
-            last_error = f'Key {i+1}: Request timeout'
+            last_error = 'Key ' + str(i+1) + ': Request timeout'
             continue
         except Exception as e:
-            last_error = f'Key {i+1}: {str(e)}'
+            last_error = 'Key ' + str(i+1) + ': ' + str(e)
             continue
 
-    # All keys failed
-    raise Exception(f'All API keys failed. Last error: {last_error}')
+    raise Exception('All API keys failed. Last error: ' + last_error)
 
 
 def parse_json(text):
@@ -185,7 +183,7 @@ def parse_json(text):
     try:
         return json.loads(clean)
     except json.JSONDecodeError as e:
-        raise Exception(f'Invalid JSON from model: {e.msg}')
+        raise Exception('Invalid JSON from model: ' + e.msg)
 
 
 def normalize_score_result(parsed, argument_text):
@@ -242,9 +240,9 @@ def score_argument():
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
 
-        prompt = f'ARGUMENT TO EVALUATE:
+        prompt = 'ARGUMENT TO EVALUATE:
 
-{argument}
+' + argument + '
 
 Analyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
         raw_response = call_groq(
@@ -278,20 +276,21 @@ def strengthen_argument():
 
         score_context = ''
         if scores:
-            score_context = f"""CURRENT SCORES:
-Logic: {scores.get('logic', 0)}/10, Evidence: {scores.get('evidence', 0)}/10, Clarity: {scores.get('clarity', 0)}/10, Depth: {scores.get('depth', 0)}/10
+            score_context = 'CURRENT SCORES:
+Logic: ' + str(scores.get('logic', 0)) + '/10, Evidence: ' + str(scores.get('evidence', 0)) + '/10, Clarity: ' + str(scores.get('clarity', 0)) + '/10, Depth: ' + str(scores.get('depth', 0)) + '/10
 
 Weaknesses identified:
-{chr(10).join(scores.get('weaknesses', []))}"""
+' + '
+'.join(scores.get('weaknesses', []))
         else:
             score_context = 'No prior scores available — analyze and improve the argument holistically.'
 
-        prompt = f"""ORIGINAL ARGUMENT:
-{argument}
+        prompt = 'ORIGINAL ARGUMENT:
+' + argument + '
 
-{score_context}
+' + score_context + '
 
-Rewrite this argument to be significantly stronger. Return only the JSON object."""
+Rewrite this argument to be significantly stronger. Return only the JSON object.'
 
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
@@ -303,9 +302,9 @@ Rewrite this argument to be significantly stronger. Return only the JSON object.
 
         improved_arg = parsed.get('improved_argument', '')
         if improved_arg:
-            rescore_prompt = f'ARGUMENT TO EVALUATE:
+            rescore_prompt = 'ARGUMENT TO EVALUATE:
 
-{improved_arg.strip()}
+' + improved_arg.strip() + '
 
 Analyze ONLY this specific argument. Return ONLY the JSON object.'
             rescore_raw = call_groq(
@@ -339,31 +338,31 @@ def compare_arguments():
         if not arg_a or not arg_b:
             return jsonify({'error': 'Both arguments required'}), 400
 
-        prompt_a = f'ARGUMENT TO EVALUATE:
+        prompt_a = 'ARGUMENT TO EVALUATE:
 
-{arg_a}
+' + arg_a + '
 
 Return ONLY the JSON object.'
         raw_a = call_groq([{'role': 'user', 'content': prompt_a}], SYSTEM_PROMPT, 1500)
         parsed_a = parse_json(raw_a)
         result_a = normalize_score_result(parsed_a, arg_a)
 
-        prompt_b = f'ARGUMENT TO EVALUATE:
+        prompt_b = 'ARGUMENT TO EVALUATE:
 
-{arg_b}
+' + arg_b + '
 
 Return ONLY the JSON object.'
         raw_b = call_groq([{'role': 'user', 'content': prompt_b}], SYSTEM_PROMPT, 1500)
         parsed_b = parse_json(raw_b)
         result_b = normalize_score_result(parsed_b, arg_b)
 
-        verdict_prompt = f"""ARGUMENT A (Score: {result_a['overall_score']}/10):
-{result_a['argument']}
+        verdict_prompt = 'ARGUMENT A (Score: ' + str(result_a['overall_score']) + '/10):
+' + result_a['argument'] + '
 
-ARGUMENT B (Score: {result_b['overall_score']}/10):
-{result_b['argument']}
+ARGUMENT B (Score: ' + str(result_b['overall_score']) + '/10):
+' + result_b['argument'] + '
 
-Write a 2-sentence verdict: which is stronger and why, and the single most decisive factor."""
+Write a 2-sentence verdict: which is stronger and why, and the single most decisive factor.'
 
         verdict = call_groq(
             [{'role': 'user', 'content': verdict_prompt}],
@@ -393,28 +392,33 @@ def debate_chat():
         if not argument or not messages:
             return jsonify({'error': 'Argument and messages required'}), 400
 
-        context = f"""ORIGINAL ARGUMENT:
-{argument}
+        weaknesses_text = '
+'.join([str(i+1) + '. ' + w for i, w in enumerate(scores.get('weaknesses', []))])
+        improvements_text = '
+'.join([str(i+1) + '. ' + p for i, p in enumerate(scores.get('improvement_points', []))])
+
+        context = 'ORIGINAL ARGUMENT:
+' + argument + '
 
 SCORE REPORT:
-Logic: {scores.get('logic', 0)}/10
-Evidence: {scores.get('evidence', 0)}/10
-Clarity: {scores.get('clarity', 0)}/10
-Depth: {scores.get('depth', 0)}/10
-Bias: {scores.get('bias', 'Medium')}
-Overall: {scores.get('overall_score', 0)}/10
+Logic: ' + str(scores.get('logic', 0)) + '/10
+Evidence: ' + str(scores.get('evidence', 0)) + '/10
+Clarity: ' + str(scores.get('clarity', 0)) + '/10
+Depth: ' + str(scores.get('depth', 0)) + '/10
+Bias: ' + scores.get('bias', 'Medium') + '
+Overall: ' + str(scores.get('overall_score', 0)) + '/10
 
-Explanation: {scores.get('explanation', '')}
+Explanation: ' + scores.get('explanation', '') + '
 
 Weaknesses:
-{chr(10).join([f"{i+1}. {w}" for i, w in enumerate(scores.get('weaknesses', []))])}
+' + weaknesses_text + '
 
 Improvement Points:
-{chr(10).join([f"{i+1}. {p}" for i, p in enumerate(scores.get('improvement_points', []))])}"""
+' + improvements_text
 
         api_messages = [
-            {'role': 'user', 'content': f'CONTEXT FOR THIS DEBATE:
-{context}
+            {'role': 'user', 'content': 'CONTEXT FOR THIS DEBATE:
+' + context + '
 
 ---
 Now the user wants to discuss this. Here is their first message:'},
@@ -441,10 +445,10 @@ def explain_dimension():
         if not argument or not dimension:
             return jsonify({'error': 'Argument and dimension required'}), 400
 
-        prompt = f"Argument:
-{argument}
+        prompt = 'Argument:
+' + argument + '
 
-This argument scored {value}/10 on {dimension}. Explain why in 2-3 sentences, referencing specific phrases."
+This argument scored ' + str(value) + '/10 on ' + dimension + '. Explain why in 2-3 sentences, referencing specific phrases.'
         response = call_groq(
             [{'role': 'user', 'content': prompt}],
             DIMENSION_EXPLAIN_SYSTEM,
