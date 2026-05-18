@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -15,6 +15,7 @@ CORS(app)
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
+# System prompts (same as original)
 SYSTEM_PROMPT = """You are a brutally precise argument analyst. Your job is to dissect the SPECIFIC argument provided and identify its EXACT flaws — not give generic writing advice.
 
 Return ONLY a valid JSON object. No preamble, no code fences, no extra text whatsoever.
@@ -52,8 +53,8 @@ OUTPUT — return EXACTLY this JSON:
   "depth": <int 0-10>,
   "bias": "Low"|"Medium"|"High",
   "explanation": "<argument-specific 2-4 sentences>",
-  "weaknesses": ["<<specific weakness>", ...],
-  "improvement_points": ["<<specific actionable instruction>", ...],
+  "weaknesses": ["<specific weakness>", ...],
+  "improvement_points": ["<specific actionable instruction>", ...],
   "confidence": "Low"|"Medium"|"High"
 }"""
 
@@ -62,7 +63,7 @@ STRENGTHEN_SYSTEM = """You are an argument architect. You receive a weak or flaw
 Return ONLY a valid JSON object with these fields:
 {
   "improved_argument": "<the rewritten argument>",
-  "changes_made": ["<<list of specific changes made, 4-6 items>"]
+  "changes_made": ["<list of specific changes made, 4-6 items>"]
 }
 
 THE SCORING RUBRIC YOU MUST SATISFY (the argument will be re-evaluated against these exact criteria):
@@ -105,10 +106,6 @@ DEBATE_SYSTEM = """You are a rigorous debate partner and argument analyst. The u
 
 Be intellectually honest: concede points that are valid, defend scores that are justified, ask clarifying questions when needed. Keep responses focused and sharp — 3-5 sentences unless a longer response is clearly warranted. No sycophancy."""
 
-DIMENSION_EXPLAIN_SYSTEM = """You are an argument analyst. Given an argument and one of its scores on a specific dimension, explain in exactly 2-3 sentences WHY it received that SPECIFIC score. Start by stating: "You scored [X]/10 in [dimension] because..." Then reference actual phrases or claims from the argument to justify this exact score. Do not give generic advice."""
-
-COMPARE_VERDICT_SYSTEM = """You are a debate judge. You have received two arguments and their scores. Write exactly 2 sentences: one declaring which argument is stronger and why, one identifying the single most decisive factor that separates them. Be blunt and specific."""
-
 
 def call_groq(messages, system_prompt, max_tokens=2000):
     """Call Groq API"""
@@ -139,10 +136,12 @@ def call_groq(messages, system_prompt, max_tokens=2000):
 
 def parse_json(text):
     """Parse JSON from LLM response"""
+    # Remove code fences
     clean = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
     clean = re.sub(r'\s*```$', '', clean)
     clean = clean.strip()
     
+    # Extract first {...} block
     match = re.search(r'\{[\s\S]*\}', clean)
     if match:
         clean = match.group(0)
@@ -164,6 +163,7 @@ def normalize_score_result(parsed, argument_text):
     if bias_str not in ['Low', 'Medium', 'High']:
         bias_str = 'Medium'
     
+    # Bias as penalty score
     bias_map = {'Low': 0, 'Medium': 3, 'High': 6}
     bias_score = 10 - bias_map[bias_str]
     
@@ -188,16 +188,13 @@ def normalize_score_result(parsed, argument_text):
     }
 
 
+# Initialize database
 init_db()
-
-
-@app.route('/')
-def serve_index():
-    return send_from_directory('.', 'index.html')
 
 
 @app.route('/api/score', methods=['POST'])
 def score_argument():
+    """Score an argument"""
     try:
         data = request.json
         argument = data.get('argument', '').strip()
@@ -205,6 +202,7 @@ def score_argument():
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
         
+        # Call Groq API
         prompt = f'ARGUMENT TO EVALUATE:\n\n{argument}\n\nAnalyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
@@ -212,9 +210,11 @@ def score_argument():
             2000
         )
         
+        # Parse and normalize
         parsed = parse_json(raw_response)
         result = normalize_score_result(parsed, argument)
         
+        # Save to database
         arg_id = save_argument(result)
         result['id'] = arg_id
         
@@ -226,6 +226,7 @@ def score_argument():
 
 @app.route('/api/strengthen', methods=['POST'])
 def strengthen_argument():
+    """Strengthen an argument"""
     try:
         data = request.json
         argument = data.get('argument', '').strip()
@@ -234,6 +235,7 @@ def strengthen_argument():
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
         
+        # Build context
         score_context = ''
         if scores:
             score_context = f"""CURRENT SCORES:
@@ -244,7 +246,13 @@ Weaknesses identified:
         else:
             score_context = 'No prior scores available — analyze and improve the argument holistically.'
         
-        prompt = 'ARGUMENT TO EVALUATE:\n\n' + argument + '\n\nAnalyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
+        prompt = f"""ORIGINAL ARGUMENT:
+{argument}
+
+{score_context}
+
+Rewrite this argument to be significantly stronger. Return only the JSON object."""
+        
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
             STRENGTHEN_SYSTEM,
@@ -253,6 +261,7 @@ Weaknesses identified:
         
         parsed = parse_json(raw_response)
         
+        # Auto-rescore improved argument
         improved_arg = parsed.get('improved_argument', '')
         if improved_arg:
             rescore_prompt = f'ARGUMENT TO EVALUATE:\n\n{improved_arg.strip()}\n\nAnalyze ONLY this specific argument. Return ONLY the JSON object.'
@@ -278,6 +287,7 @@ Weaknesses identified:
 
 @app.route('/api/compare', methods=['POST'])
 def compare_arguments():
+    """Compare two arguments"""
     try:
         data = request.json
         arg_a = data.get('argument_a', '').strip()
@@ -286,6 +296,7 @@ def compare_arguments():
         if not arg_a or not arg_b:
             return jsonify({'error': 'Both arguments required'}), 400
         
+        # Score both arguments
         prompt_a = f'ARGUMENT TO EVALUATE:\n\n{arg_a}\n\nReturn ONLY the JSON object.'
         raw_a = call_groq([{'role': 'user', 'content': prompt_a}], SYSTEM_PROMPT, 1500)
         parsed_a = parse_json(raw_a)
@@ -296,6 +307,7 @@ def compare_arguments():
         parsed_b = parse_json(raw_b)
         result_b = normalize_score_result(parsed_b, arg_b)
         
+        # Generate verdict
         verdict_prompt = f"""ARGUMENT A (Score: {result_a['overall_score']}/10):
 {result_a['argument']}
 
@@ -306,7 +318,7 @@ Write a 2-sentence verdict: which is stronger and why, and the single most decis
         
         verdict = call_groq(
             [{'role': 'user', 'content': verdict_prompt}],
-            COMPARE_VERDICT_SYSTEM,
+            "You are a debate judge. Write exactly 2 sentences: one declaring which argument is stronger and why, one identifying the single most decisive factor. Be blunt and specific.",
             200
         )
         
@@ -322,6 +334,7 @@ Write a 2-sentence verdict: which is stronger and why, and the single most decis
 
 @app.route('/api/debate', methods=['POST'])
 def debate_chat():
+    """Multi-turn debate chat"""
     try:
         data = request.json
         argument = data.get('argument', '')
@@ -331,6 +344,7 @@ def debate_chat():
         if not argument or not messages:
             return jsonify({'error': 'Argument and messages required'}), 400
         
+        # Build context
         context = f"""ORIGINAL ARGUMENT:
 {argument}
 
@@ -363,32 +377,9 @@ Improvement Points:
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/explain', methods=['POST'])
-def explain_dimension():
-    try:
-        data = request.json
-        argument = data.get('argument', '')
-        dimension = data.get('dimension', '')
-        value = data.get('value', 0)
-        
-        if not argument or not dimension:
-            return jsonify({'error': 'Argument and dimension required'}), 400
-        
-        prompt = f"Argument:\n{argument}\n\nThis argument scored {value}/10 on {dimension}. Explain why in 2-3 sentences, referencing specific phrases."
-        response = call_groq(
-            [{'role': 'user', 'content': prompt}],
-            DIMENSION_EXPLAIN_SYSTEM,
-            300
-        )
-        
-        return jsonify({'explanation': response})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/history', methods=['GET'])
 def get_history():
+    """Get all history"""
     try:
         history = get_all_history()
         return jsonify(history)
@@ -398,6 +389,7 @@ def get_history():
 
 @app.route('/api/history/<arg_id>', methods=['DELETE'])
 def delete_history_item(arg_id):
+    """Delete specific history item"""
     try:
         deleted = delete_argument(arg_id)
         if deleted:
@@ -410,6 +402,7 @@ def delete_history_item(arg_id):
 
 @app.route('/api/history/save', methods=['POST'])
 def save_to_history():
+    """Manually save argument to history"""
     try:
         data = request.json
         arg_id = save_argument(data)
@@ -419,4 +412,4 @@ def save_to_history():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
