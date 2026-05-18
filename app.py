@@ -240,11 +240,9 @@ def score_argument():
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
 
-        prompt = 'ARGUMENT TO EVALUATE:
+        prompt = 'ARGUMENT TO EVALUATE:\n\n' + argument + '\n\nAnalyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
+        
 
-' + argument + '
-
-Analyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
             SYSTEM_PROMPT,
