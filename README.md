@@ -1,10 +1,4 @@
-Perfect, samajh gaya. Aapko jo style pasand aaya usi ko maintain karte hue, maine isay **Full-Stack (Flask + Backend)** version ke liye update kar diya hai.
 
-Ab isme `app.py`, `database.py`, aur `.env` ki details shamil hain, aur "Client-side" wala hata kar "Server-side" kar diya hai.
-
-Aap isay `README.md` mein save kar saktay hain.
-
-***
 
 # ArgusScorer — Argument Quality Scorer
 
@@ -16,34 +10,41 @@ ArgusScorer is a **full-stack web application** that uses AI to analyze and scor
 
 ## 🖼️ Screenshots
 
-### API Setup
-![API](screenshots/api.png)
-*Server-side API key configuration (.env)*
+
 
 ### Argument Scorer Interface
-![Page 1](screenshots/page1.png)
+![1](screenshots/start.png)
 *Complete interface overview*
 
 ### Strengthen Argument
-![Page 2](screenshots/page2.png)
+![2](screenshots/2.png)
 *Visual workflow for strengthening arguments*
 
 ### Comparison Page
-![Page 3](screenshots/page3.png)
+![3](screenshots/3.png)
 *Argument comparison visuals*
 
 ### Scoring Result
-![Scoring](screenshots/scoring-argu.png)
+![4](screenshots/4.png)
 *Input argument and view generated score*
 
-### Strengthen & Multi-Turn Debate
-![Debate](screenshots/new-argu-debate.png)
-*AI rewrites weak argument, then improves argument using multi-turn debate*
+### Strengthen 
+![5](screenshots/5.png)
+*AI rewrites weak argument, then improves argument *
 
-### Weak vs Strong Comparison
-![Compare](screenshots/compare.png)
-*Analysis showing strength difference between arguments*
 
+### multi debate 
+![6](screenshots/6.png)
+*Real-time chat interface to challenge scores and receive specific, actionable suggestions for improving evidence and logic*
+
+
+### Head-to-Head Analysis:
+![7](screenshots/7.png)
+*Side-by-side scoring of two arguments with a decisive verdict, highlighting the winner based on depth and evidence quality.*
+
+### History Log:
+![8](screenshots/8.png)
+*Displays saved evaluations with scores and bias indicators (Low/Medium/High), allowing users to track and reload past arguments.*
 ---
 
 ## 🔍 What is ArgusScorer?
