@@ -1,174 +1,261 @@
+Perfect, samajh gaya. Aapko jo style pasand aaya usi ko maintain karte hue, maine isay **Full-Stack (Flask + Backend)** version ke liye update kar diya hai.
 
+Ab isme `app.py`, `database.py`, aur `.env` ki details shamil hain, aur "Client-side" wala hata kar "Server-side" kar diya hai.
 
-# ArgusScorer:
+Aap isay `README.md` mein save kar saktay hain.
 
-**A rigorous check on your logic, evidence, and clarity. Because sounding smart isn't enough — you actually have to make sense.**
+***
 
----
+# ArgusScorer — Argument Quality Scorer
 
-## 🚀 What is this?
+> *A rigorous, unflattering evaluation of your reasoning — on logic, evidence, clarity, depth, and bias.*
 
-Most writing tools are obsessed with grammar and style. They tell you to swap "very" for "extremely" and fix your commas. **ArgusScorer is different.**
-
-We focus on the **substance**. It dissects your argument to find the holes in your logic, the weakness in your evidence, and the bias in your perspective.
-
-Think of it as a debate partner who doesn't hold back — pointing out exactly where your reasoning falls apart before a real audience does.
+ArgusScorer is a **full-stack web application** that uses AI to analyze and score written arguments across five critical dimensions. It helps students, debaters, researchers and writers identify logical flaws, weak evidence, and bias in their reasoning — and then automatically rewrites their argument to a higher standard.
 
 ---
 
-## ✨ Why use it?
+## 🖼️ Screenshots
 
-If you are writing an essay, prepping for a debate, or drafting a research paper, you need more than just "spell check." You need to know if your argument actually holds water.
+### API Setup
+![API](screenshots/api.png)
+*Server-side API key configuration (.env)*
 
-**This project is built to be the "tough love" you need.** It won't compliment your vocabulary if your conclusion doesn't follow from your premises.
+### Argument Scorer Interface
+![Page 1](screenshots/page1.png)
+*Complete interface overview*
 
----
+### Strengthen Argument
+![Page 2](screenshots/page2.png)
+*Visual workflow for strengthening arguments*
 
-## 🛠️ Core Features
+### Comparison Page
+![Page 3](screenshots/page3.png)
+*Argument comparison visuals*
 
-### 1. The Scorecard
-Paste your text, and we’ll break it down into 5 dimensions:
-*   **Logic:** Do your conclusions actually make sense?
-*   **Evidence:** Did you cite real studies, or just make claims?
-*   **Clarity:** Is your structure easy to follow?
-*   **Depth:** Did you consider counter-arguments?
-*   **Bias:** Are you being fair to the other side?
+### Scoring Result
+![Scoring](screenshots/scoring-argu.png)
+*Input argument and view generated score*
 
-**The twist:** It quotes your exact words to show you *why* you got a low score. No vague feedback.
+### Strengthen & Multi-Turn Debate
+![Debate](screenshots/new-argu-debate.png)
+*AI rewrites weak argument, then improves argument using multi-turn debate*
 
-### 2. The Auto-Strengthener
-If your score is low, hit the **Strengthen** button.
-*   The AI rewrites your argument to meet a higher standard.
-*   It adds concrete evidence, fixes logical gaps, and addresses counter-claims.
-*   **Transparency:** It shows you the "Before vs. After" and explains exactly what changed.
-
-### 3. Head-to-Head Comparison
-Have two versions of an argument? Paste both.
-*   We score them simultaneously.
-*   You get a "Judge's Verdict" on which one is stronger and why.
-
-### 4. Debate Mode
-Don't agree with the score?
-*   Jump into a chat with the AI.
-*   Challenge the feedback ("Why is my evidence weak?").
-*   It defends its reasoning or concedes if you have a point.
+### Weak vs Strong Comparison
+![Compare](screenshots/compare.png)
+*Analysis showing strength difference between arguments*
 
 ---
 
-## 🧠 Under the Hood
+## 🔍 What is ArgusScorer?
 
-We kept the stack modern but simple. No heavy frameworks, just solid tools that work.
+Most writing tools tell you *how* to write better — fix your grammar, vary your sentence length, add transitions. ArgusScorer does something different: it tells you *why your reasoning is weak* and gives you a score breakdown with specific, quoted evidence from your own argument.
 
-| Component | Technology | Why? |
-| :--- | :--- | :--- |
-| **Backend** | Python (Flask) | Lightweight and easy to deploy. |
-| **Database** | SQLite | Zero configuration. Saves your history locally. |
-| **AI Brain** | Groq (Llama 3.3) | Incredibly fast (10x faster than GPT-4). |
-| **Frontend** | React 18 | Clean, responsive, and interactive UI. |
+It is built around a simple idea: **a well-written argument is worthless if the logic is bad.** ArgusScorer forces you to confront that.
 
-### The Flow
-```text
-Your Browser → Flask Server → Groq AI → Result
-                        ↓
-                   SQLite (Saves History)
-```
+### Who is it for?
+
+- **Students** submitting essays, debate prep, or critical thinking assignments
+- **Researchers** stress-testing their claims before peer review
+- **Debaters** identifying weaknesses an opponent would exploit
+- **Anyone** who wants to think and write more rigorously
 
 ---
 
-## 🏃‍♂️ Getting Started (It's quick)
+## ❓ Why This Project?
 
-You don't need a PhD to run this. Just Python and an API key.
+Most AI writing tools are designed to validate you. They suggest synonyms, improve flow, and make your writing sound more confident — regardless of whether your argument actually holds up.
 
-**1. Prerequisites**
-*   Python 3.8 or higher.
-*   A free **Groq API Key** ([Get it here](https://console.groq.com/keys) — takes 30 seconds).
+ArgusScorer was built to do the opposite: to be the harshest, most honest reviewer you can have before a real audience sees your work. It evaluates **reasoning quality**, not surface-level writing quality.
 
-**2. Install & Run**
-Open your terminal in the project folder:
+The evaluation is also **transparent** — every weakness is quoted directly from your text, every score has a clickable explanation, and the "Strengthen" feature shows exactly what changed and why.
+
+---
+
+## ⚙️ How It Works
+
+ArgusScorer is a **full-stack application** using a Python Flask backend and a React frontend. The server handles the AI logic and data persistence, while the browser handles the user interface.
+
+### Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Backend** | Python (Flask) |
+| **Database** | SQLite (File-based, Zero Config) |
+| **Frontend** | React 18 (UMD, no build step) |
+| **AI Inference** | Groq API — `llama-3.3-70b-versatile` |
+| **Styling** | Inline CSS + Google Fonts |
+| **Environment** | `.env` (For API Keys) |
+
+### Why Flask + SQLite?
+
+1.  **Security:** Your API key is stored on the server (`.env`), never exposed to the browser.
+2.  **Persistence:** Evaluations are saved in a local SQLite database (`argus_scorer.db`), so history survives browser restarts and server restarts.
+3.  **Performance:** Flask is lightweight and fast, perfect for handling AI API requests without the bloat of larger frameworks.
+
+---
+
+## 🔄 Workflow / Feature Walkthrough
+
+### 1. Score Tab (`§ Score`)
+
+**Input → Evaluate → Report**
+
+1.  Paste or type your argument (10 – 8,000 characters)
+2.  Click **→ Score my argument**
+3.  Receive a full report card:
+
+| Dimension | What it measures |
+|---|---|
+| **Logic** | Are conclusions actually supported by the premises? |
+| **Evidence** | Are there named studies, statistics, or concrete examples? |
+| **Clarity** | Is the thesis identifiable? Is the structure followable? |
+| **Depth** | Does it engage with counterarguments and nuance? |
+| **Bias** | Does it acknowledge opposing views fairly? |
+
+-   **Overall score** = weighted average of all five dimensions (bias included)
+-   Click any score bar to get a **2-3 sentence explanation** of exactly why that score was given, with quotes from your text
+-   **Weaknesses** section quotes your actual phrasing and names the logical flaw type
+-   **Improvement Points** give concrete, actionable instructions targeting specific claims
+-   **Auto-Save:** Results are automatically saved to the SQLite database.
+
+---
+
+### 2. Strengthen Tab (`✦ Strengthen`)
+
+**Rewrite → Verify with Real Score**
+
+1.  After scoring, click **→ Strengthen My Argument**
+2.  The backend sends the argument to the AI to rewrite it, targeting the scoring rubric:
+    -   Adds named studies or documented real-world cases (evidence ≥ 6)
+    -   Makes causal chains explicit: *If X then Y, because Z* (logic ≥ 7)
+    -   Addresses counterarguments with reasoning, not dismissal (depth ≥ 7, bias → Low)
+3.  The improved argument is displayed **side-by-side** with your original
+4.  A **second automatic API call** re-scores the improved version with verified real scores — not AI estimates
+5.  Score changes are shown in green (improvement) or red (regression)
+
+> You can also use this tab **without scoring first** — paste any argument directly.
+
+---
+
+### 3. Compare Tab (`⚖ Compare`)
+
+**Head-to-head argument evaluation**
+
+1.  Paste two arguments (yours vs. a peer's, two drafts, etc.)
+2.  Both are scored simultaneously via parallel backend requests
+3.  A **judge verdict** is generated: which argument wins and why, in exactly 2 sentences
+4.  You can choose to save either argument to the database history or skip saving.
+
+---
+
+### 4. History Tab (`§ History`)
+
+-   Every scored argument is automatically saved to the **SQLite database**.
+-   History is persistent — it remains even if you close the browser or restart the server.
+-   Up to 100 entries stored in the database.
+-   Click any entry to reload the full report.
+-   Source label shows whether it came from direct scoring or compare mode.
+-   Clear all history with one click (deletes from database).
+
+---
+
+### 5. Debate Chat (`⚔ Multi-Turn Debate`)
+
+After scoring, a debate panel appears below the report:
+
+-   Challenge any weakness: *"I disagree with weakness #1"*
+-   Dispute a score: *"Why is my evidence score so low?"*
+-   Ask for improvement paths: *"What would make this a 9/10?"*
+
+The AI (via the backend) has full context of your argument and scores. It will concede valid points and defend justified scores — no sycophancy.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+-   **Python 3.8+** installed on your machine.
+-   A free Groq API key: [console.groq.com/keys](https://console.groq.com/keys) — no credit card required
+-   A modern browser (Chrome, Firefox, Edge, Safari)
+
+### Running the App
 
 ```bash
-# Install the libraries
+# 1. Clone or Download the repository
+git clone https://github.com/YOUR_USERNAME/argus-scorer.git
+cd argus-scorer
+
+# 2. Install Python dependencies
 pip install -r requirements.txt
 
-# Add your key to a .env file
-echo "GROQ_API_KEY=gsk_your_actual_key_here" > .env
+# 3. Set up your API Key
+# Create a file named '.env' and add your key:
+# GROQ_API_KEY=gsk_your_actual_key_here
 
-# Start the server
+# 4. Run the Flask Server
 python app.py
+
+# 5. Open in Browser
+# The app will be available at http://localhost:5000
 ```
 
-**3. Open the App**
-Go to `http://localhost:5000` in your browser. That's it.
+> **Security Note:** Your API key is stored in the `.env` file on the server. It is **never sent** to the frontend browser, ensuring it remains secure even on public networks.
 
 ---
 
-## 📂 Project Structure
-
-Everything you need is right here.
+## 📁 Project Structure
 
 ```text
 argus-scorer/
-├── app.py              # The brain: Handles API routes and logic
-├── database.py         # The memory: Manages SQLite
-├── index.html          # The face: React frontend UI
-├── requirements.txt    # The list: Dependencies
-├── .env                # The secret: Your API key (don't share this!)
-└── argus_scorer.db     # The data: Auto-created database file
+├── app.py              # Flask Backend - API Routes & Logic
+├── database.py         # SQLite Helpers - Database Operations
+├── index.html          # React Frontend - UI Components
+├── requirements.txt    # Python Dependencies
+├── .env                # Environment Variables (API Key) - Do not commit this!
+├── argus_scorer.db     # SQLite Database (Auto-created on first run)
+└── README.md           # This file
 ```
 
 ---
 
-## ⚖️ How the AI Judges
+## 🧠 Scoring Rubric (How the AI Judges)
 
-The scorer follows a strict rulebook. It doesn't guess.
+The scorer uses a strict rule-based prompt. Key mandatory rules:
 
-*   **No named studies?** → Evidence score gets capped at 3/10.
-*   **Weak causal reasoning?** → Logic score gets capped at 4/10.
-*   **Ignoring the other side?** → Bias is automatically marked "High".
-*   **Short content?** → Depth score drops significantly.
+```
+No named studies or statistics        → evidence MUST be ≤ 3
+Weak or absent causal reasoning       → logic MUST be ≤ 4
+Only one perspective considered       → bias CANNOT be "Low"
+Sweeping generalizations              → bias = "High"
+Short or underdeveloped argument      → depth MUST be ≤ 4
+```
 
-**The Goal:** To force you to think deeper, not just write prettier.
-
----
-
-## 📌 API Endpoints
-
-If you are a developer looking to tinker:
-
-*   `POST /api/score` — Analyze a single argument.
-*   `POST /api/strengthen` — Rewrite an argument to improve it.
-*   `POST /api/compare` — Compare two arguments side-by-side.
-*   `POST /api/debate` — Chat with the AI about your score.
-*   `GET /api/history` — Retrieve your past evaluations.
+Every weakness must quote or paraphrase a specific phrase from the argument and name the exact logical flaw type (e.g., *hasty generalization*, *circular reasoning*, *appeal to popularity*).
 
 ---
 
-## 🚧 The Fine Print (Limitations)
+## 🛠️ Known Limitations
 
-*   **Rate Limits:** The free Groq tier is fast but has limits. If you spam the "Score" button, you might hit a pause.
-*   **Hallucinations:** In "Strengthen" mode, the AI might invent a study name to make a point. **Always verify** real-world facts.
-*   **Local History:** Currently, history is stored locally on the machine running the server.
-
----
-
-## 🌐 Deployment
-
-Want to put this online for free?
-
-1.  Push this code to GitHub.
-2.  Create a free account on [Render.com](https://render.com).
-3.  Connect your repo.
-4.  Add `GROQ_API_KEY` in the environment variables.
-5.  Click Deploy.
+-   **Server Required:** Unlike the previous version, this requires Python and a running server (`python app.py`).
+-   **Groq rate limits:** Free tier has request limits; heavy use may hit them.
+-   **SQLite Concurrency:** SQLite is file-based. While perfect for single-user or small group use, it is not designed for high-traffic concurrent production environments (switch to PostgreSQL for scale).
+-   **Model Hallucination:** AI may cite plausible-sounding but non-existent studies in Strengthen output. Always verify sources.
+-   **No User Accounts:** History is local to the database instance; there are no login/user systems (suitable for personal or coursework use).
 
 ---
 
-## 👋 Credits
+## 📄 License
 
-Built to explore how AI can help us think more critically, not just write faster.
-
-**Tech Stack:** Groq · Llama 3.3 · Flask · React · SQLite
+This project was developed as an academic submission. All AI inference is performed via Groq API using the Llama 3.3 70B model.
 
 ---
 
-*Made for thinkers, writers, and anyone who hates bad arguments.*
+## 👤 Author
+
+Developed as part of a coursework project.  
+Powered by [Groq](https://groq.com) · [Llama 3.3 70B](https://www.llama.com) · [Flask](https://flask.palletsprojects.com) · [React 18](https://react.dev)
+
+---
+
+*Built for those who value precision, logic, and clear thinking.*
