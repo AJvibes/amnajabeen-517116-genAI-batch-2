@@ -12,9 +12,25 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+# Primary and backup API keys
+GROQ_API_KEYS = []
+
+# Load primary key
+primary_key = os.getenv('GROQ_API_KEY')
+if primary_key:
+    GROQ_API_KEYS.append(primary_key)
+
+# Load backup key
+backup_key = os.getenv('GROQ_API_KEY_2')
+if backup_key:
+    GROQ_API_KEYS.append(backup_key)
+
 GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
+if not GROQ_API_KEYS:
+    raise Exception('No GROQ_API_KEY found. Please set at least one API key.')
+
+# System prompts (same as original)
 SYSTEM_PROMPT = """You are a brutally precise argument analyst. Your job is to dissect the SPECIFIC argument provided and identify its EXACT flaws — not give generic writing advice.
 
 Return ONLY a valid JSON object. No preamble, no code fences, no extra text whatsoever.
@@ -52,8 +68,8 @@ OUTPUT — return EXACTLY this JSON:
   "depth": <int 0-10>,
   "bias": "Low"|"Medium"|"High",
   "explanation": "<argument-specific 2-4 sentences>",
-  "weaknesses": ["<<specific weakness>", ...],
-  "improvement_points": ["<<specific actionable instruction>", ...],
+  "weaknesses": ["<specific weakness>", ...],
+  "improvement_points": ["<specific actionable instruction>", ...],
   "confidence": "Low"|"Medium"|"High"
 }"""
 
@@ -62,7 +78,7 @@ STRENGTHEN_SYSTEM = """You are an argument architect. You receive a weak or flaw
 Return ONLY a valid JSON object with these fields:
 {
   "improved_argument": "<the rewritten argument>",
-  "changes_made": ["<<list of specific changes made, 4-6 items>"]
+  "changes_made": ["<list of specific changes made, 4-6 items>"]
 }
 
 THE SCORING RUBRIC YOU MUST SATISFY (the argument will be re-evaluated against these exact criteria):
@@ -111,30 +127,49 @@ COMPARE_VERDICT_SYSTEM = """You are a debate judge. You have received two argume
 
 
 def call_groq(messages, system_prompt, max_tokens=2000):
-    """Call Groq API"""
-    if not GROQ_API_KEY:
-        raise Exception('GROQ_API_KEY not set in environment')
-    
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {GROQ_API_KEY}'
-    }
-    
-    payload = {
-        'model': 'llama-3.3-70b-versatile',
-        'temperature': 0.4,
-        'max_tokens': max_tokens,
-        'messages': [{'role': 'system', 'content': system_prompt}] + messages
-    }
-    
-    response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-    
-    if not response.ok:
-        error_data = response.json()
-        raise Exception(error_data.get('error', {}).get('message', f'Groq API error {response.status_code}'))
-    
-    data = response.json()
-    return data['choices'][0]['message']['content'].strip()
+    """Call Groq API with fallback to backup keys"""
+
+    last_error = None
+
+    for i, api_key in enumerate(GROQ_API_KEYS):
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }
+
+            payload = {
+                'model': 'llama-3.3-70b-versatile',
+                'temperature': 0.4,
+                'max_tokens': max_tokens,
+                'messages': [{'role': 'system', 'content': system_prompt}] + messages
+            }
+
+            response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+
+            if response.status_code == 429:
+                # Rate limited — try next key
+                last_error = f'Key {i+1} rate limited'
+                continue
+
+            if not response.ok:
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', f'Groq API error {response.status_code}')
+                last_error = f'Key {i+1}: {error_msg}'
+                continue
+
+            data = response.json()
+            return data['choices'][0]['message']['content'].strip()
+
+        except requests.exceptions.Timeout:
+            last_error = f'Key {i+1}: Request timeout'
+            continue
+        except Exception as e:
+            last_error = f'Key {i+1}: {str(e)}'
+            continue
+
+    # All keys failed
+    raise Exception(f'All API keys failed. Last error: {last_error}')
 
 
 def parse_json(text):
@@ -142,11 +177,11 @@ def parse_json(text):
     clean = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
     clean = re.sub(r'\s*```$', '', clean)
     clean = clean.strip()
-    
+
     match = re.search(r'\{[\s\S]*\}', clean)
     if match:
         clean = match.group(0)
-    
+
     try:
         return json.loads(clean)
     except json.JSONDecodeError as e:
@@ -159,20 +194,20 @@ def normalize_score_result(parsed, argument_text):
     evidence = max(0, min(10, int(parsed.get('evidence', 0))))
     clarity = max(0, min(10, int(parsed.get('clarity', 0))))
     depth = max(0, min(10, int(parsed.get('depth', 0))))
-    
+
     bias_str = parsed.get('bias', 'Medium')
     if bias_str not in ['Low', 'Medium', 'High']:
         bias_str = 'Medium'
-    
+
     bias_map = {'Low': 0, 'Medium': 3, 'High': 6}
     bias_score = 10 - bias_map[bias_str]
-    
+
     overall = round((logic + evidence + clarity + depth + bias_score) / 5 * 10) / 10
-    
+
     confidence = parsed.get('confidence', 'Medium')
     if confidence not in ['Low', 'Medium', 'High']:
         confidence = 'Medium'
-    
+
     return {
         'argument': argument_text.strip(),
         'overall_score': overall,
@@ -188,6 +223,7 @@ def normalize_score_result(parsed, argument_text):
     }
 
 
+# Initialize database
 init_db()
 
 
@@ -198,42 +234,48 @@ def serve_index():
 
 @app.route('/api/score', methods=['POST'])
 def score_argument():
+    """Score an argument"""
     try:
         data = request.json
         argument = data.get('argument', '').strip()
-        
+
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
-        
-        prompt = f'ARGUMENT TO EVALUATE:\n\n{argument}\n\nAnalyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
+
+        prompt = f'ARGUMENT TO EVALUATE:
+
+{argument}
+
+Analyze ONLY this specific argument. Quote or reference actual phrases from it. Return ONLY the JSON object.'
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
             SYSTEM_PROMPT,
             2000
         )
-        
+
         parsed = parse_json(raw_response)
         result = normalize_score_result(parsed, argument)
-        
+
         arg_id = save_argument(result)
         result['id'] = arg_id
-        
+
         return jsonify(result)
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/strengthen', methods=['POST'])
 def strengthen_argument():
+    """Strengthen an argument"""
     try:
         data = request.json
         argument = data.get('argument', '').strip()
         scores = data.get('scores')
-        
+
         if not argument:
             return jsonify({'error': 'Argument text required'}), 400
-        
+
         score_context = ''
         if scores:
             score_context = f"""CURRENT SCORES:
@@ -243,25 +285,29 @@ Weaknesses identified:
 {chr(10).join(scores.get('weaknesses', []))}"""
         else:
             score_context = 'No prior scores available — analyze and improve the argument holistically.'
-        
+
         prompt = f"""ORIGINAL ARGUMENT:
 {argument}
 
 {score_context}
 
 Rewrite this argument to be significantly stronger. Return only the JSON object."""
-        
+
         raw_response = call_groq(
             [{'role': 'user', 'content': prompt}],
             STRENGTHEN_SYSTEM,
             1200
         )
-        
+
         parsed = parse_json(raw_response)
-        
+
         improved_arg = parsed.get('improved_argument', '')
         if improved_arg:
-            rescore_prompt = f'ARGUMENT TO EVALUATE:\n\n{improved_arg.strip()}\n\nAnalyze ONLY this specific argument. Return ONLY the JSON object.'
+            rescore_prompt = f'ARGUMENT TO EVALUATE:
+
+{improved_arg.strip()}
+
+Analyze ONLY this specific argument. Return ONLY the JSON object.'
             rescore_raw = call_groq(
                 [{'role': 'user', 'content': rescore_prompt}],
                 SYSTEM_PROMPT,
@@ -271,37 +317,46 @@ Rewrite this argument to be significantly stronger. Return only the JSON object.
             improved_scores = normalize_score_result(rescore_parsed, improved_arg)
         else:
             improved_scores = None
-        
+
         return jsonify({
             'improved_argument': improved_arg,
             'changes_made': parsed.get('changes_made', []),
             'improved_scores': improved_scores
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/compare', methods=['POST'])
 def compare_arguments():
+    """Compare two arguments"""
     try:
         data = request.json
         arg_a = data.get('argument_a', '').strip()
         arg_b = data.get('argument_b', '').strip()
-        
+
         if not arg_a or not arg_b:
             return jsonify({'error': 'Both arguments required'}), 400
-        
-        prompt_a = f'ARGUMENT TO EVALUATE:\n\n{arg_a}\n\nReturn ONLY the JSON object.'
+
+        prompt_a = f'ARGUMENT TO EVALUATE:
+
+{arg_a}
+
+Return ONLY the JSON object.'
         raw_a = call_groq([{'role': 'user', 'content': prompt_a}], SYSTEM_PROMPT, 1500)
         parsed_a = parse_json(raw_a)
         result_a = normalize_score_result(parsed_a, arg_a)
-        
-        prompt_b = f'ARGUMENT TO EVALUATE:\n\n{arg_b}\n\nReturn ONLY the JSON object.'
+
+        prompt_b = f'ARGUMENT TO EVALUATE:
+
+{arg_b}
+
+Return ONLY the JSON object.'
         raw_b = call_groq([{'role': 'user', 'content': prompt_b}], SYSTEM_PROMPT, 1500)
         parsed_b = parse_json(raw_b)
         result_b = normalize_score_result(parsed_b, arg_b)
-        
+
         verdict_prompt = f"""ARGUMENT A (Score: {result_a['overall_score']}/10):
 {result_a['argument']}
 
@@ -309,34 +364,35 @@ ARGUMENT B (Score: {result_b['overall_score']}/10):
 {result_b['argument']}
 
 Write a 2-sentence verdict: which is stronger and why, and the single most decisive factor."""
-        
+
         verdict = call_groq(
             [{'role': 'user', 'content': verdict_prompt}],
             COMPARE_VERDICT_SYSTEM,
             200
         )
-        
+
         return jsonify({
             'argument_a': result_a,
             'argument_b': result_b,
             'verdict': verdict
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/debate', methods=['POST'])
 def debate_chat():
+    """Multi-turn debate chat"""
     try:
         data = request.json
         argument = data.get('argument', '')
         scores = data.get('scores', {})
         messages = data.get('messages', [])
-        
+
         if not argument or not messages:
             return jsonify({'error': 'Argument and messages required'}), 400
-        
+
         context = f"""ORIGINAL ARGUMENT:
 {argument}
 
@@ -355,46 +411,55 @@ Weaknesses:
 
 Improvement Points:
 {chr(10).join([f"{i+1}. {p}" for i, p in enumerate(scores.get('improvement_points', []))])}"""
-        
+
         api_messages = [
-            {'role': 'user', 'content': f'CONTEXT FOR THIS DEBATE:\n{context}\n\n---\nNow the user wants to discuss this. Here is their first message:'},
+            {'role': 'user', 'content': f'CONTEXT FOR THIS DEBATE:
+{context}
+
+---
+Now the user wants to discuss this. Here is their first message:'},
             {'role': 'assistant', 'content': "Understood. I have the full score report and the original argument in context. I'm ready to debate. What's your point?"}
         ] + messages
-        
+
         response = call_groq(api_messages, DEBATE_SYSTEM, 600)
-        
+
         return jsonify({'response': response})
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/explain', methods=['POST'])
 def explain_dimension():
+    """Explain a specific dimension score"""
     try:
         data = request.json
         argument = data.get('argument', '')
         dimension = data.get('dimension', '')
         value = data.get('value', 0)
-        
+
         if not argument or not dimension:
             return jsonify({'error': 'Argument and dimension required'}), 400
-        
-        prompt = f"Argument:\n{argument}\n\nThis argument scored {value}/10 on {dimension}. Explain why in 2-3 sentences, referencing specific phrases."
+
+        prompt = f"Argument:
+{argument}
+
+This argument scored {value}/10 on {dimension}. Explain why in 2-3 sentences, referencing specific phrases."
         response = call_groq(
             [{'role': 'user', 'content': prompt}],
             DIMENSION_EXPLAIN_SYSTEM,
             300
         )
-        
+
         return jsonify({'explanation': response})
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
+    """Get all history"""
     try:
         history = get_all_history()
         return jsonify(history)
@@ -404,6 +469,7 @@ def get_history():
 
 @app.route('/api/history/<arg_id>', methods=['DELETE'])
 def delete_history_item(arg_id):
+    """Delete specific history item"""
     try:
         deleted = delete_argument(arg_id)
         if deleted:
@@ -416,6 +482,7 @@ def delete_history_item(arg_id):
 
 @app.route('/api/history/save', methods=['POST'])
 def save_to_history():
+    """Manually save argument to history"""
     try:
         data = request.json
         arg_id = save_argument(data)
