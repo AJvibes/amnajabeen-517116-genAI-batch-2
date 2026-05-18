@@ -185,8 +185,9 @@ The AI (via the backend) has full context of your argument and scores. It will c
 ### Running the App
 
 ```bash
-# 1. Clone or Download the repository
-git clone https://github.com/YOUR_USERNAME/argus-scorer.git
+# #1. Download the repository
+# Go to GitHub → Click "Code" → "Download ZIP"
+# Extract the ZIP file and open the folder
 cd argus-scorer
 
 # 2. Install Python dependencies
