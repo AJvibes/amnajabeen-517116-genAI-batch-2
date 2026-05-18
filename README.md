@@ -202,6 +202,12 @@ python app.py
 
 # 5. Open in Browser
 # The app will be available at http://localhost:5000
+
+##6. 🔗 Live Demo
+
+**[Click here to use ArgusScorer](https://argument-scorer-517116.up.railway.app)**
+
+No setup required — works on any device.
 ```
 
 > **Security Note:** Your API key is stored in the `.env` file on the server. It is **never sent** to the frontend browser, ensuring it remains secure even on public networks.
