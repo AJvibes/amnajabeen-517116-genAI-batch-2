@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -190,6 +190,10 @@ def normalize_score_result(parsed, argument_text):
 
 # Initialize database
 init_db()
+
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html')
 
 
 @app.route('/api/score', methods=['POST'])
