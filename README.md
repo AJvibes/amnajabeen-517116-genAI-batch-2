@@ -45,6 +45,8 @@ ArgusScorer is a **full-stack web application** that uses AI to analyze and scor
 ### History Log:
 ![8](screenshots/8.png)
 *Displays saved evaluations with scores and bias indicators (Low/Medium/High), allowing users to track and reload past arguments.*
+
+
 ---
 
 ## 🔍 What is ArgusScorer?
