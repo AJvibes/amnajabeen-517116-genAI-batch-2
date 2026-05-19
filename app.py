@@ -23,18 +23,39 @@ Return ONLY a valid JSON object. No preamble, no code fences, no extra text what
 SCORING RUBRIC (use the FULL 0-10 range):
 
 LOGIC (0-10):
-0-3: Major flaws (circular reasoning, false cause, strawman, non-sequitur)
-4-5: Weak reasoning, significant gaps in causal chain, unsupported leaps
+0-3: Major flaws (circular reasoning, false cause, strawman, non-sequitur, contradiction)
+4-5: Weak reasoning, significant gaps in causal chain, unsupported leaps, missing premises
 6-7: Solid reasoning with minor gaps, conclusions generally follow from premises
-8-9: Tight logical structure, clear causal chains, minimal assumptions
+8-9: Tight logical structure, clear causal chains, minimal assumptions, explicit connections
 10: Airtight logic, every step explicitly justified, no leaps
+
+LOGIC PENALTY TRIGGERS (these force score to 4-5 range):
+- Circular reasoning: "X is true because X is true" (restating claim as evidence)
+- Unsupported leaps: "If A then C" without explaining B
+- False cause: "After X, therefore because of X" without mechanism
+- Begging the question: assuming what needs to be proven
+- Non-sequitur: conclusion doesn't follow from premises
+
+If argument contains 2+ logic flaws AND no explicit causal mechanism, logic CANNOT exceed 5.
 
 EVIDENCE (0-10):
 0-2: No evidence, pure assertion, or fabricated claims
-3-4: Generic claims ("studies show", "experts say") without specifics
-5-6: Some concrete details but weak (anecdotes only, outdated data, vague sources)
-7-8: Strong evidence (named sources, specific statistics, recent data, real examples)
+3-4: Generic claims ("studies show", "experts say", "many countries", "research indicates") without ANY specifics
+5-6: Some concrete details but weak (single anecdote, outdated data, vague source like "a university study")
+7-8: Strong evidence (named sources with dates, specific statistics, recent data, named real examples)
 9-10: Multiple credible sources, quantified data, peer-reviewed studies, cross-verified facts
+
+EVIDENCE PENALTY TRIGGERS (these phrases FORCE score to 3-4 range):
+- "Studies show..." without naming the study
+- "Experts agree..." without naming experts
+- "Many countries..." without naming countries
+- "Research indicates..." without citing research
+- "It's well known..." without providing the source
+- "Common sense..." as evidence substitute
+- "Economists say..." without naming economists
+- Generic examples without specifics ("companies", "businesses", "people")
+
+If argument contains 2+ penalty triggers AND no named sources, evidence CANNOT exceed 4.
 
 CLARITY (0-10):
 0-3: Incoherent, no clear thesis, confusing structure
@@ -44,11 +65,13 @@ CLARITY (0-10):
 10: Perfect clarity, every sentence purposeful, no ambiguity
 
 DEPTH (0-10):
-0-3: Surface-level, no nuance, ignores complexity
+0-3: Surface-level, no nuance, ignores complexity entirely
 4-5: Basic treatment, misses key considerations, oversimplified
-6-7: Decent depth, addresses some complexity, acknowledges limits
-8-9: Engages counterarguments, explores trade-offs, shows nuance
-10: Comprehensive, anticipates objections, acknowledges conditions/limitations
+6-7: Addresses core complexity, acknowledges some limits or trade-offs
+8-9: Engages counterarguments substantively, explores trade-offs, shows real nuance
+10: Comprehensive analysis, anticipates objections, acknowledges conditions/limitations
+
+Depth is about intellectual rigor, not word count. An argument can be comprehensive in 100 words or superficial in 500.
 
 BIAS (Low/Medium/High):
 High: One-sided, ignores opposing views, loaded language, strawmanning
@@ -62,7 +85,17 @@ SCORE HONESTLY:
 - A weak argument with vague claims and logic gaps = 4-5 range
 - A broken argument with major flaws = 0-3 range
 
-DO NOT penalize harshly for minor imperfections. DO penalize for actual substantive flaws.
+CRITICAL: LENGTH IS NEUTRAL. Judge ONLY by content quality:
+- Short + Strong evidence/logic = HIGH score (efficiency is bonus, not requirement)
+- Long + Strong evidence/logic = HIGH score (thoroughness is valued when substantive)
+- Short + Weak evidence/logic = LOW score (brevity doesn't excuse lack of support)
+- Long + Weak evidence/logic = LOW score (verbosity without substance is penalized)
+
+A 300-word argument with 3 named studies and tight reasoning scores HIGHER than a 50-word argument with vague claims. A 50-word argument with 1 named study scores HIGHER than a 300-word argument with no evidence. Length itself adds or subtracts NOTHING — only what's inside matters.
+
+ENFORCE PENALTY TRIGGERS: If the argument triggers multiple evidence or logic penalties, apply them strictly. "Sounds reasonable" is NOT evidence. Generic claims deserve low scores.
+
+DO NOT penalize harshly for minor imperfections. DO penalize for actual substantive flaws (missing evidence, circular logic, unsupported claims).
 
 WEAKNESSES — identify 2-6 specific flaws:
 - Quote or paraphrase the exact problematic phrase
@@ -129,9 +162,11 @@ BIAS (target: Low or Medium):
 HARD RULES:
 - Preserve the original thesis — do not change what is being argued
 - Write a complete standalone argument — no placeholders like [Study X] or [Source needed]
-- Every sentence must add scoring value — no padding
-- Length should be exactly as long as needed to satisfy the rubric (typically 150-250 words for strong arguments)
-- Do NOT inflate scores artificially — aim for honest 7-9 range, not forced 10s"""
+- Every sentence must add scoring value — no padding or filler
+- LENGTH IS NEUTRAL: If original is short but needs more evidence, expand it. If original is long but needs tighter logic, condense it. If original is already optimal length, maintain it while upgrading quality.
+- Add named sources, specific data, and clear reasoning regardless of final word count
+- Do NOT inflate scores artificially — aim for honest 7-9 range, not forced 10s
+- Quality improvements matter, not hitting a word count target"""
 
 DEBATE_SYSTEM = """You are a rigorous debate partner and argument analyst. The user has submitted an argument which has been scored, and now they want to discuss it. You have the original argument and its full score report as context. 
 
