@@ -30,7 +30,7 @@ ArgusScorer is a **full-stack web application** that uses AI to analyze and scor
 
 ### Dimension
 ![dimension](screenshots/dimension.png)
-*Showing Argument , dimension and value*
+*Showing Argument , dimension ,and value*
 
 ### Strengthen 
 ![5](screenshots/5.png)
