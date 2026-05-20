@@ -479,6 +479,41 @@ def save_to_history():
         return jsonify({'id': arg_id, 'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/explain', methods=['POST'])
+def explain_dimension():
+    """Explain a specific score dimension"""
+    try:
+        data = request.json
+        argument = data.get('argument', '').strip()
+        dimension = data.get('dimension', '').strip()
+        value = data.get('value', 0)
+
+        if not argument or not dimension:
+            return jsonify({'error': 'Argument and dimension required'}), 400
+
+        prompt = f"""You scored the following argument's {dimension} as {value}/10.
+
+ARGUMENT:
+{argument}
+
+In 3-5 sentences, explain specifically WHY this argument received a {value}/10 for {dimension}.
+Quote or reference actual phrases from the argument. Be concrete and direct — no filler."""
+
+        explain_system = """You are an expert argument analyst explaining a specific score dimension.
+Be precise, quote the argument directly, and explain the scoring decision clearly.
+Respond in plain prose, 3-5 sentences only. No JSON, no lists, no headers."""
+
+        response = call_groq(
+            [{'role': 'user', 'content': prompt}],
+            explain_system,
+            400
+        )
+
+        return jsonify({'explanation': response})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
